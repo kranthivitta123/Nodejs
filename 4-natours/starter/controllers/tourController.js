@@ -1,6 +1,15 @@
 const fs = require('fs');
 const tours = JSON.parse(fs.readFileSync(`${__dirname}/../dev-data/data/tours-simple.json`));
 
+exports.checkBody = (req , res , next) => {
+    if(!req.body.name) {
+      return  res.status(404).json({
+            status:"Name not found"
+        })
+    }
+    next();
+}
+
 exports.getAllTours = (req, res) => {
     res.status(200).json({
         message: "success",
