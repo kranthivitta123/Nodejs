@@ -17,9 +17,6 @@ app.use((req,res,next) => {
     req.requestedTime = new Date().toISOString();
     next();
 })
-
-const port = 3000;
-
 // app.get('/api/v1/tours', getAllTours);
 // app.get('/api/v1/tours/:id', getTour)
 // app.post('/api/v1/tours', addTour)
@@ -30,6 +27,6 @@ const port = 3000;
 app.use('/api/v1/tours' , tourRouter);
 app.use('/api/v1/users' , userRouter);
 
-app.listen(port, () => {
-        console.log("Node server started");
-})
+
+
+module.exports = app;
