@@ -12,17 +12,34 @@ exports.checkBody = (req, res, next) => {
     next();
 }
 
-exports.getAllTours = (req, res) => {
-    res.status(200).json({
-        message: "success"
-    })
+exports.getAllTours = async (req, res) => {
+    try {
+        const tours = await Tour.find();
+        res.status(200).json({
+            message: "success",
+            count:tours.length,
+            data: tours
+        })
+    } catch (err) {
+        res.status(400).json({
+            message: "error"
+        })
+    }
 }
 
-exports.getTour = (req, res) => {
-    const id = req.params.id;
-    res.status(200).json({
-        status: "success",
-    })
+exports.getTour = async (req, res) => {
+    try {
+        const id = req.params.id;
+        const tour = await Tour.findById(id);
+        res.status(200).json({
+            status: "success",
+            data: tour
+        })
+    } catch (err) {
+        res.status(400).json({
+            message: "error"
+        })
+    }
 }
 
 exports.addTour = async (req, res) => {
@@ -41,16 +58,35 @@ exports.addTour = async (req, res) => {
     }
 };
 
-exports.updateTour = (req, res) => {
-    res.status(200).json({
-        status: "success",
-        data: "UPdated Successfully"
-    })
+exports.updateTour = async (req, res) => {
+    try {
+        const tour = await Tour.findByIdAndUpdate(req.params.id , req.body , {
+            new : true ,
+            runValidators:true
+        })
+        res.status(200).json({
+            status: "updated successfully",
+            data: tour
+        })
+    }
+    catch(err) {
+        res.status(400).json({
+            error: "fail",
+        })
+    }
+   
 }
 
-exports.deleteTour = (req, res) => {
-    res.status(200).json({
-        status: "success",
-        data: obj
-    })
+exports.deleteTour = async (req, res) => {
+    try {
+        const tour = await Tour.findByIdAndDelete(req.params.id)
+        res.status(200).json({
+            status: "deleted successfully"
+        })
+    }
+    catch(err) {
+        res.status(400).json({
+            error: "fail"
+        })
+    }
 }
