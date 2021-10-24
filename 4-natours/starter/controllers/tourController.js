@@ -1,5 +1,6 @@
 const fs = require('fs');
 const Tour = require('./../models/tourModel');
+const APIfeatures = require('../utils/apiFeatures')
 
 // const tours = JSON.parse(fs.readFileSync(`${__dirname}/../dev-data/data/tours-simple.json`));
 
@@ -19,50 +20,20 @@ exports.aliasTopTours = (req, res, next) => {
         next();
 }
 
+
+
 exports.getAllTours = async (req, res) => {
     try {
-        const queryObj = { ...req.query };
-        console.log(queryObj);
-        const excludeFields = ['page', 'sort', 'limit', 'fields']
-        excludeFields.forEach(el => delete queryObj[el]);
-        let queryStr = JSON.stringify(queryObj);
-        queryStr = queryStr.replace(/\b(gte|gt|lt|lte)\b/g, match => `$${match}`);
-        let query = Tour.find(JSON.parse(queryStr));
-        //sorting
-
+        const features = new APIfeatures(Tour.find(), req.query).filter().sort().limitfields().paginate();
         //http://localhost:3000/api/v1/tours?sort=price Default asc
         //http://localhost:3000/api/v1/tours?sort=-price Desc
-        if (req.query.sort) {
-            //only one field sorting if value equal mention other field
-            // query = query.sort(req.query.sort); 
-            const sortBy = req.query.sort.split(',').join(' ')
-            query = query.sort(sortBy);
-            //http://localhost:3000/api/v1/tours?sort=-price,-duration
-        }
-        else {
-            query = query.sort('duration')
-        }
-        //fields limiting 
 
-        if (req.query.fields) {
-            const fields = req.query.fields.split(',').join(' ')
-            query = query.select(fields)
-        }
-        else {
-            query = query.select('-__v')
-        }
-
-        //pagination
-        const page = req.query.page * 1 || 1;
-        const limit = req.query.limit * 1 || 10;
-        query = query.skip((page - 1) * limit).limit(limit);
-
-        if (req.query.page) {
-            const count = await Tour.countDocuments();
-            console.log(count)
-            if ((page - 1) * limit >= count) throw new Error('Page does not exist');
-        }
-        const tours = await query;
+        // if (req.query.page) {
+        //     const count = await Tour.countDocuments();
+        //     console.log(count)
+        //     if ((page - 1) * limit >= count) throw new Error('Page does not exist');
+        // }
+        const tours = await features.query;
         res.status(200).json({
             message: "success",
             count: tours.length,
@@ -130,6 +101,84 @@ exports.deleteTour = async (req, res) => {
         const tour = await Tour.findByIdAndDelete(req.params.id)
         res.status(200).json({
             status: "deleted successfully"
+        })
+    }
+    catch (err) {
+        res.status(400).json({
+            error: "fail"
+        })
+    }
+}
+
+exports.getAllTourStats = async (req, res) => {
+    try {
+        const stats = await Tour.aggregate([
+            {
+                $match: { ratingsAverage: { $gte: 4.5 } }
+            },
+            {
+                $group: {
+                    _id: "$difficulty",
+                    numTours: { $sum: 1 },
+                    numRatings: { $sum: '$ratingsQuantity' },
+                    avgRatings: { $avg: '$ratingsAverage' },
+                    avgPrice: { $avg: '$price' },
+                    minPrice: { $min: '$price' },
+                    maxPrice: { $max: '$price' }
+                }
+            } ,
+            {
+                $sort : { avgPrice : 1 }
+            }
+        ])
+
+        res.status(200).json({
+            status: "Fetched successfully",
+            data: stats
+        })
+    }
+    catch (err) {
+        res.status(400).json({
+            error: "fail"
+        })
+    }
+}
+
+exports.getMonthlyPlan = async (req, res) => {
+    try {
+        const year = req.params.year * 1 ;
+
+        const stats = await Tour.aggregate([
+            {
+                $unwind: '$startDates'
+            },
+            {
+                $match: {
+                    startDates:
+                    {
+                        $gte: new Date(`${year}-01-01`),
+                        $lte: new Date(`${year}-12-31`)
+                    }
+                }
+            },
+            {
+                $group: {
+                    _id: { $month :  "$startDates" },
+                    numToursStats: { $sum: 1 },
+                    tours : { $push : '$name' } 
+                }
+            } ,
+            {
+                $addFields : { month : '$_id'}
+            } ,
+            {
+                $project : { _id : 0}
+            }
+        ])
+
+        res.status(200).json({
+            status: "Fetched successfully",
+            data: stats
         })
     }
     catch (err) {
